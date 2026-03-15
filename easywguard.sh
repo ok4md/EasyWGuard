@@ -3,7 +3,7 @@
 # Cesty a výchozí hodnoty
 SERVER_CONF="wg0.conf"
 PUB_KEY_FILE="serverpub.key"
-DEF_IP="YourServerAddress"
+DEF_IP="192.168.0.1"
 DEF_PORT="3030"
 DEF_NET="10.10"
 
