@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Kontrola a instalace závislostí pro Debian
+for cmd in dialog qrencode wg; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Instaluji chybějící nástroj: $cmd..."
+        sudo apt update && sudo apt install -y dialog qrencode wireguard-tools
+        break
+    fi
+done
+
 # Cesty a výchozí hodnoty
 SERVER_CONF="wg0.conf"
 PUB_KEY_FILE="serverpub.key"
@@ -26,6 +35,7 @@ PrivateKey = $SRV_PRIVATE
 #SaveConfig = true
 # PublicIP: $S_IP
 EOF
+    chmod 600 "$SERVER_CONF"
     dialog --msgbox "Server hotov. Veřejný klíč uložen do $PUB_KEY_FILE" 10 60
 else
     # --- KLIENT ---
@@ -38,9 +48,9 @@ else
 
     # 2. Načtení parametrů ze serveru
     if [ -f "$SERVER_CONF" ]; then
-        S_IP=$(grep "PublicIP" "$SERVER_CONF" | awk '{print $NF}')
-        S_PORT=$(grep "ListenPort" "$SERVER_CONF" | awk '{print $NF}')
-        S_NET=$(grep "Address" "$SERVER_CONF" | awk '{print $NF}' | cut -d. -f1,2)
+        S_IP=$(grep "PublicIP" "$SERVER_CONF" | awk '{print $3}')
+        S_PORT=$(grep "ListenPort" "$SERVER_CONF" | awk '{print $3}')
+        S_NET=$(grep "Address" "$SERVER_CONF" | awk '{print $3}' | cut -d. -f1,2)
     fi
     : ${S_IP:=$DEF_IP}; : ${S_PORT:=$DEF_PORT}; : ${S_NET:=$DEF_NET}
 
@@ -50,7 +60,7 @@ else
     
     C_IP=$(dialog --inputbox "IP klienta:" 8 60 "${S_NET}.0.10" 3>&1 1>&2 2>&3)
 
-    # 4. ZÁPIS KONFIGURACE KLIENTA (Zde MUSÍ být CLIENT_PRIVATE)
+    # 4. ZÁPIS KONFIGURACE KLIENTA
     cat <<EOF > wg0_client.conf
 [Interface]
 PrivateKey = $CLIENT_PRIVATE
@@ -63,8 +73,9 @@ Endpoint = $S_IP:$S_PORT
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
+    chmod 600 wg0_client.conf
 
-    # 5. ZÁPIS NA SERVER (Zde MUSÍ být CLIENT_PUBLIC)
+    # 5. ZÁPIS NA SERVER
     if [ -f "$SERVER_CONF" ]; then
         echo -e "\n[Peer]\n# Klient $C_IP\nPublicKey = $CLIENT_PUBLIC\nAllowedIPs = $C_IP/32" >> "$SERVER_CONF"
     fi
@@ -79,3 +90,4 @@ EOF
     read -p "Nyní jsou klíče správně odděleny. Pokračujte Enterem..."
 fi
 clear
+
